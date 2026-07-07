@@ -14,7 +14,6 @@ interface ReviewResult {
 }
 
 export default function Review() {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [results, setResults] = useState<ReviewResult | null>(null)
 

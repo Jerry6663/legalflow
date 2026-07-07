@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Shield, BookOpen, Scale, ArrowRight, FileCheck, Search, Users } from 'lucide-react'
+import { Shield, BookOpen, Scale, ArrowRight, FileCheck } from 'lucide-react'
 
 const features = [
   {
