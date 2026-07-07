@@ -2,6 +2,13 @@
 
 AI驱动的智能合同审查平台，面向中小律所和企业的轻量级合同审查与合规管理工具。
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/Jerry6663/legalflow)
+
+## 在线地址
+
+- **前端 (已上线)**: https://frontend-lemon-nu-75.vercel.app
+- **后端**: 上线中... 点上方 Railway 按钮一键部署
+
 ## 技术栈
 
 | 层 | MVP期 | 生产期 |
