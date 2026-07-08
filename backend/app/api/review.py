@@ -51,6 +51,12 @@ async def upload_contract(file: UploadFile = File(...)):
         result = document_parser.parse_contract(file_path)
     except DocumentParsingError as e:
         raise HTTPException(422, detail=str(e))
+    finally:
+        # Clean up uploaded file to prevent disk bloat
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
 
     return {
         "upload_id": upload_id,
