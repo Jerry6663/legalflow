@@ -35,3 +35,6 @@ uploads/
 # Logs
 *.log
 logs/
+
+# Local project memory (contains secrets)
+.workbuddy/

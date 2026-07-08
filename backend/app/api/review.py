@@ -5,7 +5,10 @@ from pydantic import BaseModel
 import os
 import uuid
 from ..services.document_parser import document_parser, DocumentParsingError
-from ..core.llm_client import get_llm
+from ..services.contract_classifier import contract_classifier
+from ..services.clause_splitter import clause_splitter
+from ..services.risk_classifier import risk_classifier
+from ..services.rule_retriever import rule_retriever
 from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/review", tags=["contract-review"])
@@ -14,22 +17,25 @@ router = APIRouter(prefix="/api/v1/review", tags=["contract-review"])
 class ReviewRequest(BaseModel):
     contract_text: str
     contract_type: str | None = "通用"
-    rules: list[str] | None = None
 
 
-class ReviewResponse(BaseModel):
+class AnalysisResponse(BaseModel):
     review_id: str
-    risk_level: str
-    findings: list[dict] = []
+    contract_type: str
+    confidence: float
+    keywords: list[str]
+    clauses: list[dict]
+    risks: list[dict]
+    matched_rules: list[dict]
+    overall_level: str
     summary: str
-    raw_report: str
 
 
 @router.post("/upload")
 async def upload_contract(file: UploadFile = File(...)):
     """Upload a contract document for review."""
     ext = os.path.splitext(file.filename or "contract.pdf")[1].lower()
-    if ext not in [".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png"]:
+    if ext not in [".pdf", ".docx", ".doc"]:
         raise HTTPException(400, f"Unsupported file type: {ext}")
 
     upload_id = str(uuid.uuid4())
@@ -53,41 +59,90 @@ async def upload_contract(file: UploadFile = File(...)):
     }
 
 
-@router.post("/analyze", response_model=ReviewResponse)
-async def analyze_contract(request: ReviewRequest):
-    """Analyze contract text and generate review report."""
-    llm = get_llm()
+@router.post("/analyze")
+async def analyze_contract(request: ReviewRequest) -> AnalysisResponse:
+    """Phase 1: Full contract analysis pipeline.
+    
+    Steps:
+    1. Classify contract type
+    2. Split into clauses
+    3. Analyze each clause for risks
+    4. Retrieve matching review rules
+    5. Compile results
+    """
+    text = request.contract_text
+    review_id = str(uuid.uuid4())
 
-    system_prompt = """你是一位经验丰富的中国合同审查律师。请对以下合同进行专业审查，输出格式如下：
+    # Step 1: Classify contract type
+    if request.contract_type == "通用" or not request.contract_type:
+        classification = contract_classifier.classify(text)
+        contract_type = classification.get("type", "通用")
+        confidence = classification.get("confidence", 0.5)
+        keywords = classification.get("keywords", [])
+    else:
+        contract_type = request.contract_type
+        confidence = 1.0
+        keywords = []
 
-## 风险等级
-- 高风险 / 中风险 / 低风险
+    # Step 2: Split into clauses
+    clauses = clause_splitter.split(text)
 
-## 审查发现
-逐条列出风险/问题，每条包含：
-- 风险等级：高/中/低
-- 条款位置：相关条款描述
-- 风险描述：具体风险是什么
-- 法律依据：引用的法律法规和条款
-- 修改建议：如何修改
+    # Step 3: Risk analysis (limit to 10 clauses for speed)
+    risk_result = risk_classifier.analyze_contract(clauses, max_clauses=10)
 
-## 总体评估
-对合同的总体评价和建议"""
+    # Step 4: Retrieve matching rules for clauses with risks
+    matched_rules = []
+    for clause in risk_result["clauses"]:
+        if clause.get("has_risk"):
+            rules = rule_retriever.search_for_clause(
+                clause, contract_type=contract_type, top_k=3
+            )
+            matched_rules.append({
+                "clause_title": clause.get("title", ""),
+                "clause_type": clause.get("type", ""),
+                "rules": rules,
+            })
 
-    response = llm.chat(
-        system_prompt=system_prompt,
-        user_message=f"合同类型：{request.contract_type}\n\n合同正文：\n{request.contract_text[:30000]}",
-        temperature=0.1,
-        max_tokens=4096,
+    # Step 5: Generate summary
+    summary = _generate_summary(risk_result, matched_rules, contract_type)
+
+    return AnalysisResponse(
+        review_id=review_id,
+        contract_type=contract_type,
+        confidence=confidence,
+        keywords=keywords,
+        clauses=clauses,
+        risks=risk_result["clauses"],
+        matched_rules=matched_rules,
+        overall_level=risk_result["overall_level"],
+        summary=summary,
     )
 
-    return ReviewResponse(
-        review_id=str(uuid.uuid4()),
-        risk_level="中风险",
-        findings=[],
-        summary="审查完成",
-        raw_report=response,
-    )
+
+def _generate_summary(risk_result: dict, matched_rules: list[dict], contract_type: str) -> str:
+    """Generate a human-readable summary of the review."""
+    total = risk_result["total_risks"]
+    high = risk_result["high_risks"]
+    medium = risk_result["medium_risks"]
+    level = risk_result["overall_level"]
+    clauses_count = risk_result["clauses_analyzed"]
+    total_clauses = risk_result["clauses_total"]
+
+    parts = [
+        f"审查完成。合同类型：{contract_type}。",
+        f"共审查 {clauses_count}/{total_clauses} 个条款，",
+        f"发现 {total} 个风险点",
+    ]
+
+    if high > 0:
+        parts.append(f"（其中高风险 {high} 个）")
+    if medium > 0:
+        parts.append(f"（中风险 {medium} 个）")
+
+    parts.append(f"。综合风险等级：{level}。")
+    parts.append(f"匹配审查规则 {len(matched_rules)} 条。")
+
+    return "".join(parts)
 
 
 @router.get("/health")

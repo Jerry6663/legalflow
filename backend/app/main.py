@@ -4,11 +4,15 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .core.config import settings
+from .api.review import router as review_router
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
 )
+
+# Register API routers BEFORE static file catch-all
+app.include_router(review_router)
 
 # Serve static frontend
 app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
