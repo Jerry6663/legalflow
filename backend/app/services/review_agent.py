@@ -149,8 +149,7 @@ class ReviewAgent:
         self._add_step("generate_report", "报告生成完成")
 
     def _do_complete(self):
-        elapsed = round(time.time() - self.context.get("started_at", 0), 1)
-        self._add_step("complete", f"审查完成，耗时 {elapsed} 秒")
+        self._add_step("complete", "审查报告生成完成")
 
     def _add_step(self, step: str, detail: str):
         self._steps.append({
