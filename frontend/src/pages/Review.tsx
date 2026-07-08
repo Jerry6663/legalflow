@@ -60,36 +60,62 @@ export default function Review() {
   const [parsedText, setParsedText] = useState('')
   const [results, setResults] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState('')
+  const [elapsed, setElapsed] = useState(0)
 
   const handleFile = async (file: File) => {
     setStep('uploading')
     setError('')
+    setResults(null)
 
     try {
       const form = new FormData()
       form.append('file', file)
 
       const res = await fetch('/api/v1/review/upload', { method: 'POST', body: form })
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+      if (!res.ok) throw new Error(`上传失败: ${res.status}`)
 
       const data = await res.json()
       const text = data.parsed?.raw_text || ''
       setParsedText(text)
 
-      // Now analyze
+      // Start analysis with 45s timeout
       setStep('analyzing')
-      const analyzeRes = await fetch('/api/v1/review/analyze/full', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contract_text: text, contract_type: '通用' }),
-      })
+      setElapsed(0)
+      const timer = setInterval(() => setElapsed(p => p + 1), 1000)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
 
+      try {
+        const analyzeRes = await fetch('/api/v1/review/analyze/full', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contract_text: text, contract_type: '通用' }),
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        clearInterval(timer)
+
+        if (!analyzeRes.ok) {
+          const errText = await analyzeRes.text()
+          throw new Error(errText.slice(0, 200) || `分析失败: ${analyzeRes.status}`)
       if (!analyzeRes.ok) throw new Error(`Analysis failed: ${analyzeRes.status}`)
       const analyzeData = await analyzeRes.json()
       setResults(analyzeData)
-      setStep('done')
+        const analyzeData = await analyzeRes.json()
+        setResults(analyzeData)
+        setStep('done')
+      } catch (fetchErr: unknown) {
+        clearTimeout(timeoutId)
+        clearInterval(timer)
+        if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
+          setError('审查超时（超过45秒）。请尝试上传更短的合同，或稍后重试。')
+        } else {
+          setError(fetchErr instanceof Error ? fetchErr.message : '分析失败')
+        }
+        setStep('upload')
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(e instanceof Error ? e.message : '上传失败')
       setStep('upload')
     }
   }
@@ -125,7 +151,10 @@ export default function Review() {
             {(step === 'uploading' || step === 'analyzing') && (
               <div className="flex flex-col items-center justify-center py-8 text-gray-500">
                 <Loader2 className="w-8 h-8 animate-spin text-[#1e3a5f] mb-3" />
-                <p>{step === 'uploading' ? '正在上传解析...' : 'AI正在审查合同，约需30秒...'}</p>
+                <p>{step === 'uploading' ? '正在上传解析...' : `AI正在审查合同... 已等待 ${elapsed} 秒`}</p>
+                {step === 'analyzing' && elapsed > 10 && (
+                  <p className="text-xs text-gray-400 mt-1">DeepSeek V4 分析中，请耐心等待</p>
+                )}
               </div>
             )}
 
