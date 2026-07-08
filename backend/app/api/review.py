@@ -4,6 +4,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 import os
 import uuid
+import asyncio
 from ..services.document_parser import document_parser, DocumentParsingError
 from ..services.contract_classifier import contract_classifier
 from ..services.clause_splitter import clause_splitter
@@ -13,6 +14,9 @@ from ..services.review_agent import review_agent
 from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/review", tags=["contract-review"])
+
+# Limit concurrent LLM processing to prevent OOM (Railway free tier: 512MB)
+_review_semaphore = asyncio.Semaphore(2)
 
 
 class ReviewRequest(BaseModel):
@@ -142,17 +146,17 @@ class FullReviewResponse(BaseModel):
 
 @router.post("/analyze/full")
 async def analyze_contract_full(request: ReviewRequest) -> FullReviewResponse:
-    """Full 7-step contract review workflow powered by ReviewAgent state machine.
+    """Full 7-step review workflow (non-blocking — supports concurrent requests).
 
-    Steps: IDLE -> CLASSIFY -> SPLIT -> ANALYZE_RISKS ->
-           RETRIEVE_RULES -> RETRIEVE_LAWS -> GENERATE_REPORT -> COMPLETE
-
-    Returns complete result including a structured markdown report.
+    Uses asyncio.to_thread to prevent event loop blocking + semaphore(2)
+    to limit concurrent LLM calls on Railway's constrained free tier.
     """
-    result = review_agent.run(
-        text=request.contract_text,
-        contract_type=request.contract_type or "通用",
-    )
+    async with _review_semaphore:
+        result = await asyncio.to_thread(
+            review_agent.run,
+            text=request.contract_text,
+            contract_type=request.contract_type or "通用",
+        )
 
     return FullReviewResponse(
         review_id=result["review_id"],
