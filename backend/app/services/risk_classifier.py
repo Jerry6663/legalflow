@@ -29,7 +29,7 @@ RISK_ANALYSIS_PROMPT = """你是一位专业合同审查律师。请审查以下
   "has_risk": true/false,
   "risks": [
     {
-      "type": "风险类型（从预定义列表中选择）",
+      "type": "风险类型（从不公平格式条款、违约责任不明确、知识产权归属模糊、保密条款缺失或不足、争议解决条款不利、付款条件苛刻、交付标准不清晰、免责条款过度、违约赔偿过高、单方变更权、赔偿责任不对等中选择）",
       "severity": "高风险/中风险/低风险/信息提示",
       "description": "风险的具体描述",
       "relevant_text": "涉及风险的原文片段",
@@ -40,6 +40,28 @@ RISK_ANALYSIS_PROMPT = """你是一位专业合同审查律师。请审查以下
 }
 
 只返回JSON，不要其他内容。"""
+
+BATCH_ANALYSIS_PROMPT = """你是一位专业合同审查律师。请审查以下合同的所有条款，逐个识别潜在风险。
+
+返回JSON数组，每个元素对应一个条款：
+[
+  {
+    "clause_index": 0,
+    "has_risk": true/false,
+    "risks": [
+      {
+        "type": "风险类型",
+        "severity": "高风险/中风险/低风险/信息提示",
+        "description": "风险描述",
+        "relevant_text": "原文片段",
+        "suggestion": "修改建议",
+        "legal_basis": "法律依据"
+      }
+    ]
+  }
+]
+
+只返回JSON数组，不要其他内容。"""
 
 
 class RiskClassifier:
@@ -75,17 +97,13 @@ class RiskClassifier:
         }
 
     def analyze_contract(
-        self, clauses: list[dict], max_clauses: int = 20
+        self, clauses: list[dict], max_clauses: int = 12
     ) -> dict:
-        """Analyze all clauses in a contract.
-        
-        For large contracts, analyze the most important clauses first:
-        - 违约责任 clauses
-        - 知识产权 clauses
-        - 保密 clauses
-        Then the rest up to max_clauses.
+        """Analyze all clauses in a contract via single batch LLM call.
+
+        Priority: 违约 > 知识产权 > 保密 > 价款 > 争议 > 其他
+        Max 12 clauses to keep response under token limits.
         """
-        # Priority order for analysis
         priority_types = ["违约", "知识产权", "保密", "价款", "争议"]
         prioritized = sorted(
             clauses,
@@ -95,17 +113,40 @@ class RiskClassifier:
                 if c.get("type") in priority_types
                 else 999,
             ),
+        )[:max_clauses]
+
+        # Build batch prompt — one LLM call for all clauses
+        clause_texts = []
+        for i, clause in enumerate(prioritized):
+            clause_texts.append(
+                f"[条款{i}] 【{clause.get('type', '')}】{clause.get('title', '')}\n"
+                f"{clause.get('content', '')[:800]}"
+            )
+        combined = "\n\n---\n\n".join(clause_texts)
+
+        result = self.llm.chat(
+            system_prompt=BATCH_ANALYSIS_PROMPT,
+            user_message=f"请分析以下 {len(prioritized)} 个合同条款：\n\n{combined}",
+            temperature=0,
+            max_tokens=4000,
         )
 
+        # Parse batch results and merge back into clauses
+        batch_results = self._parse_batch_result(result)
         analyzed = []
-        total_risks = 0
+        for i, clause in enumerate(prioritized):
+            br = batch_results[i] if i < len(batch_results) else {"has_risk": False, "risks": []}
+            analyzed.append({
+                "title": clause.get("title", ""),
+                "type": clause.get("type", ""),
+                "content": clause.get("content", ""),
+                "position": clause.get("position", i),
+                "has_risk": br.get("has_risk", False),
+                "risks": br.get("risks", []),
+            })
 
-        for clause in prioritized[:max_clauses]:
-            result = self.analyze_clause(clause)
-            analyzed.append(result)
-            total_risks += len(result["risks"])
-
-        # Calculate overall risk level
+        # Calculate stats
+        total_risks = sum(len(c["risks"]) for c in analyzed)
         high = sum(1 for c in analyzed for r in c["risks"] if r["severity"] == "高风险")
         medium = sum(1 for c in analyzed for r in c["risks"] if r["severity"] == "中风险")
 
@@ -127,6 +168,16 @@ class RiskClassifier:
             "clauses_analyzed": len(analyzed),
             "clauses_total": len(clauses),
         }
+
+    def _parse_batch_result(self, raw: str) -> list[dict]:
+        import json
+        try:
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[1].rsplit("\n", 1)[0]
+            return json.loads(raw)
+        except (json.JSONDecodeError, IndexError):
+            return []
 
     def _parse_result(self, raw: str) -> dict:
         import json
