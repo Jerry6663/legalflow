@@ -357,35 +357,12 @@ export default function Review() {
                   </div>
                 )}
 
-                {/* Steps Timeline */}
-                {results.steps && results.steps.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">审查步骤</h3>
-                    <div className="space-y-1">
-                      {results.steps.map((s, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs">
-                          <div className="w-4 h-4 rounded-full bg-[#1e3a5f]/10 flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-[10px] text-[#1e3a5f] font-bold">{i + 1}</span>
-                          </div>
-                          <span className="text-gray-600">{s.detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Report */}
-                {results.report && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">审查报告</h3>
-                    <details className="bg-gray-50 rounded-xl p-4">
-                      <summary className="text-sm text-[#1e3a5f] cursor-pointer hover:underline">查看完整报告</summary>
-                      <pre className="mt-3 text-xs text-gray-700 whitespace-pre-wrap font-mono max-h-[400px] overflow-y-auto">
-                        {results.report}
-                      </pre>
-                    </details>
-                  </div>
-                )}
+                {/* Disclaimer */}
+                <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    <strong>免责声明：</strong>本审查结果由 AI 自动生成，仅供法律风险参考，不构成正式法律意见。对于重大合同或涉及重大权益的事项，建议咨询专业律师进行最终审查。LegalFlow 不对审查结果的完整性、准确性承担法律责任。
+                  </p>
+                </div>
               </div>
             )}
           </div>
