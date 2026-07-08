@@ -372,7 +372,7 @@ export default function Review() {
                 {/* Disclaimer */}
                 <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
                   <p className="text-xs text-amber-700 leading-relaxed">
-                    <strong>免责声明：</strong>本审查结果由 AI 自动生成，仅供法律风险参考，不构成正式法律意见。对于重大合同或涉及重大权益的事项，建议咨询专业律师进行最终审查。LegalFlow 不对审查结果的完整性、准确性承担法律责任。
+                    <strong>免责声明：</strong>本审查结果由 AI 自动生成，仅供法律风险参考，不构成正式法律意见。对于重大合同或涉及重大权益的事项，建议咨询专业律师进行最终审查。
                   </p>
                 </div>
               </div>
