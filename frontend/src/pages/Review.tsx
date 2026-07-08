@@ -294,7 +294,6 @@ export default function Review() {
                                 <span className="ml-2 text-xs text-gray-500">{risk.type}</span>
                                 <p className="text-sm text-gray-600 mt-1">{risk.description}</p>
                               </div>
-                              )}
                             </div>
                           ))}
                         </div>
