@@ -269,7 +269,7 @@ export default function Review() {
                               {/* 1. 合同原文 (highlight) */}
                               {risk.relevant_text && (
                                 <p className="text-sm text-gray-900 bg-yellow-50 rounded px-2 py-1 font-medium">
-                                  "{risk.relevant_text.slice(0, 200)}"
+                                  原文："{risk.relevant_text.slice(0, 200)}"
                                 </p>
                               )}
                               {/* 2. 法律依据 */}
@@ -278,7 +278,13 @@ export default function Review() {
                                   法律依据：{risk.legal_basis}
                                 </p>
                               )}
-                              {/* 3. AI评语 */}
+                              {/* 3. 修改建议 */}
+                              {risk.suggestion && (
+                                <p className="text-xs text-green-700 mt-1">
+                                  修改建议：{risk.suggestion}
+                                </p>
+                              )}
+                              {/* 4. AI评语 */}
                               <div className="mt-1.5">
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                   risk.severity === '高风险' ? 'bg-red-100 text-red-700' :
@@ -288,11 +294,6 @@ export default function Review() {
                                 <span className="ml-2 text-xs text-gray-500">{risk.type}</span>
                                 <p className="text-sm text-gray-600 mt-1">{risk.description}</p>
                               </div>
-                              {/* 4. 修改建议 */}
-                              {risk.suggestion && (
-                                <p className="text-xs text-green-700 mt-1">
-                                  修改建议：{risk.suggestion}
-                                </p>
                               )}
                             </div>
                           ))}
