@@ -1,6 +1,6 @@
 """Document parsing service — PDF and DOCX."""
 
-import os
+
 from pathlib import Path
 import pdfplumber
 from docx import Document

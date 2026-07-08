@@ -8,7 +8,7 @@ from ..core.config import settings
 
 class VectorStore:
     """ChromaDB vector store for legal document retrieval (RAG).
-    
+
     Uses ChromaDB's default embedding function (all-MiniLM-L6-v2)
     to avoid heavyweight sentence-transformers dependency.
     """

@@ -7,7 +7,7 @@ from .config import settings
 
 class DeepSeekClient:
     """DeepSeek API client wrapper.
-    
+
     Supports both sync/async, streaming/non-streaming modes.
     Primary LLM for LegalFlow — cost-effective with strong Chinese legal understanding.
     """
@@ -99,7 +99,7 @@ class DeepSeekClient:
 
     def estimate_cost(self, input_tokens: int, output_tokens: int) -> float:
         """Estimate cost in CNY based on DeepSeek pricing.
-        
+
         DeepSeek-V3: ¥1 per 1M input tokens, ¥2 per 1M output tokens
         """
         input_cost = (input_tokens / 1_000_000) * 1.0
@@ -109,6 +109,7 @@ class DeepSeekClient:
 
 # Singleton
 llm_client = DeepSeekClient()
+
 
 # Factory function for easy import
 def get_llm() -> DeepSeekClient:
