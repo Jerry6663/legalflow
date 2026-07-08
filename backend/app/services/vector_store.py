@@ -3,7 +3,6 @@
 import os
 import chromadb
 from chromadb.config import Settings
-from typing import list[str]
 from ..core.config import settings
 
 
