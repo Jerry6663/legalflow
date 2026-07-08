@@ -97,12 +97,12 @@ class RiskClassifier:
         }
 
     def analyze_contract(
-        self, clauses: list[dict], max_clauses: int = 12
+        self, clauses: list[dict], max_clauses: int = 8
     ) -> dict:
-        """Analyze all clauses in a contract via single batch LLM call.
+        """Analyze all clauses via single batch LLM call.
 
         Priority: 违约 > 知识产权 > 保密 > 价款 > 争议 > 其他
-        Max 12 clauses to keep response under token limits.
+        Max 8 clauses for speed.
         """
         priority_types = ["违约", "知识产权", "保密", "价款", "争议"]
         prioritized = sorted(
@@ -120,7 +120,7 @@ class RiskClassifier:
         for i, clause in enumerate(prioritized):
             clause_texts.append(
                 f"[条款{i}] 【{clause.get('type', '')}】{clause.get('title', '')}\n"
-                f"{clause.get('content', '')[:800]}"
+                f"{clause.get('content', '')[:400]}"
             )
         combined = "\n\n---\n\n".join(clause_texts)
 
@@ -128,7 +128,7 @@ class RiskClassifier:
             system_prompt=BATCH_ANALYSIS_PROMPT,
             user_message=f"请分析以下 {len(prioritized)} 个合同条款：\n\n{combined}",
             temperature=0,
-            max_tokens=4000,
+            max_tokens=2000,
         )
 
         # Parse batch results and merge back into clauses

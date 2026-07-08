@@ -102,7 +102,7 @@ class ReviewAgent:
 
     def _do_analyze_risks(self):
         clauses = self.context.get("clauses", [])
-        result = risk_classifier.analyze_contract(clauses, max_clauses=12)
+        result = risk_classifier.analyze_contract(clauses, max_clauses=8)
         self.context["risk_result"] = result
         self.context["overall_level"] = result["overall_level"]
         self._add_step("analyze_risks", f"发现 {result['total_risks']} 个风险点")
