@@ -266,21 +266,33 @@ export default function Review() {
                           {clause.risks.map((risk, j) => (
                             <div key={j} className="mt-2 ml-2 border-l-2 pl-3"
                               style={{ borderColor: risk.severity === '高风险' ? '#ef4444' : risk.severity === '中风险' ? '#eab308' : '#3b82f6' }}>
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                risk.severity === '高风险' ? 'bg-red-100 text-red-700' :
-                                risk.severity === '中风险' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-blue-100 text-blue-700'
-                              }`}>{risk.severity}</span>
-                              <span className="ml-2 text-xs text-gray-500">{risk.type}</span>
-                              <p className="text-sm text-gray-600 mt-1">{risk.description}</p>
+                              {/* 1. 合同原文 (highlight) */}
                               {risk.relevant_text && (
-                                <p className="text-xs text-gray-400 mt-1 italic">"{risk.relevant_text.slice(0, 100)}"</p>
+                                <p className="text-sm text-gray-900 bg-yellow-50 rounded px-2 py-1 font-medium">
+                                  "{risk.relevant_text.slice(0, 200)}"
+                                </p>
                               )}
-                              {risk.suggestion && (
-                                <p className="text-xs text-green-700 mt-1">修改建议: {risk.suggestion}</p>
-                              )}
+                              {/* 2. 法律依据 */}
                               {risk.legal_basis && (
-                                <p className="text-xs text-gray-500 mt-1">法律依据: {risk.legal_basis}</p>
+                                <p className="text-xs text-gray-500 mt-1.5">
+                                  法律依据：{risk.legal_basis}
+                                </p>
+                              )}
+                              {/* 3. AI评语 */}
+                              <div className="mt-1.5">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  risk.severity === '高风险' ? 'bg-red-100 text-red-700' :
+                                  risk.severity === '中风险' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-blue-100 text-blue-700'
+                                }`}>{risk.severity}</span>
+                                <span className="ml-2 text-xs text-gray-500">{risk.type}</span>
+                                <p className="text-sm text-gray-600 mt-1">{risk.description}</p>
+                              </div>
+                              {/* 4. 修改建议 */}
+                              {risk.suggestion && (
+                                <p className="text-xs text-green-700 mt-1">
+                                  修改建议：{risk.suggestion}
+                                </p>
                               )}
                             </div>
                           ))}
