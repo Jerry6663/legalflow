@@ -1,21 +1,25 @@
-"""Vector store service — ChromaDB with BGE embedding."""
+"""Vector store service — ChromaDB."""
 
 import os
 import chromadb
 from chromadb.config import Settings
-from typing import List
+from typing import list[str]
 from ..core.config import settings
 
 
 class VectorStore:
-    """ChromaDB vector store for legal document retrieval (RAG)."""
+    """ChromaDB vector store for legal document retrieval (RAG).
     
+    Uses ChromaDB's default embedding function (all-MiniLM-L6-v2)
+    to avoid heavyweight sentence-transformers dependency.
+    """
+
     def __init__(self, persist_dir: str | None = None):
         self.persist_dir = persist_dir or settings.CHROMA_PERSIST_DIR
         os.makedirs(self.persist_dir, exist_ok=True)
         self._client = None
         self._collections = {}
-    
+
     @property
     def client(self):
         if self._client is None:
@@ -24,7 +28,7 @@ class VectorStore:
                 settings=Settings(anonymized_telemetry=False),
             )
         return self._client
-    
+
     def get_collection(self, name: str):
         """Get or create a collection."""
         if name not in self._collections:
@@ -33,13 +37,13 @@ class VectorStore:
                 metadata={"hnsw:space": "cosine"},
             )
         return self._collections[name]
-    
+
     def add_documents(
         self,
         collection_name: str,
-        documents: List[str],
-        metadatas: List[dict],
-        ids: List[str],
+        documents: list[str],
+        metadatas: list[dict],
+        ids: list[str],
     ):
         """Add documents to a collection."""
         collection = self.get_collection(collection_name)
@@ -48,14 +52,14 @@ class VectorStore:
             metadatas=metadatas,
             ids=ids,
         )
-    
+
     def search(
         self,
         collection_name: str,
         query: str,
         n_results: int = 5,
-    ) -> List[dict]:
-        """Search for similar documents in a collection."""
+    ) -> list[dict]:
+        """Search for similar documents."""
         collection = self.get_collection(collection_name)
         results = collection.query(
             query_texts=[query],
@@ -70,7 +74,7 @@ class VectorStore:
                 "distance": results["distances"][0][i] if results.get("distances") else None,
             })
         return output
-    
+
     def delete_collection(self, name: str):
         """Delete a collection."""
         self.client.delete_collection(name)
@@ -78,5 +82,4 @@ class VectorStore:
             del self._collections[name]
 
 
-# Singleton
 vector_store = VectorStore()

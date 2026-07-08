@@ -1,14 +1,10 @@
-"""Document parsing service — PDF, DOCX, and image OCR."""
+"""Document parsing service — PDF and DOCX."""
 
 import os
 from pathlib import Path
-from typing import Optional
-import tempfile
-import fitz  # PyMuPDF
 import pdfplumber
 from docx import Document
 from PIL import Image
-import pytesseract
 
 
 class DocumentParsingError(Exception):
@@ -17,68 +13,39 @@ class DocumentParsingError(Exception):
 
 class DocumentParser:
     """Parse legal documents (contracts) from various formats."""
-    
-    SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png", ".tiff"}
-    
-    def __init__(self, tesseract_cmd: Optional[str] = None):
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-    
+
+    SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png"}
+
+    def __init__(self):
+        pass
+
     def parse(self, file_path: str) -> tuple[str, dict]:
-        """Parse document and return (full_text, metadata).
-        
-        Args:
-            file_path: Path to the document file
-            
-        Returns:
-            Tuple of (full_text as string, metadata dict)
-            
-        Raises:
-            DocumentParsingError: If parsing fails
-            ValueError: If file type is unsupported
-        """
         ext = Path(file_path).suffix.lower()
         if ext not in self.SUPPORTED_EXTENSIONS:
-            raise ValueError(f"Unsupported file type: {ext}. Supported: {self.SUPPORTED_EXTENSIONS}")
-        
+            raise ValueError(
+                f"Unsupported file type: {ext}. Supported: {self.SUPPORTED_EXTENSIONS}"
+            )
+
         parsers = {
-            ".pdf": self._parse_pdf_pymupdf,
+            ".pdf": self._parse_pdf,
             ".docx": self._parse_docx,
             ".doc": self._parse_docx,
             ".jpg": self._parse_image,
             ".jpeg": self._parse_image,
             ".png": self._parse_image,
-            ".tiff": self._parse_image,
         }
-        
+
         parser = parsers.get(ext)
         if not parser:
             raise DocumentParsingError(f"No parser found for {ext}")
-        
+
         try:
             return parser(file_path)
         except Exception as e:
             raise DocumentParsingError(f"Failed to parse {file_path}: {e}")
-    
-    def _parse_pdf_pymupdf(self, file_path: str) -> tuple[str, dict]:
-        """Parse PDF using PyMuPDF (fast, good text extraction)."""
-        doc = fitz.open(file_path)
-        metadata = {
-            "pages": len(doc),
-            "title": doc.metadata.get("title", ""),
-            "author": doc.metadata.get("author", ""),
-            "format": "pdf",
-        }
-        text_parts = []
-        for page_num, page in enumerate(doc, 1):
-            page_text = page.get_text()
-            if page_text.strip():
-                text_parts.append(f"--- 第{page_num}页 ---\n{page_text}")
-        doc.close()
-        return "\n".join(text_parts), metadata
-    
-    def _parse_pdf_pdfplumber(self, file_path: str) -> tuple[str, dict]:
-        """Parse PDF using pdfplumber (better for tables)."""
+
+    def _parse_pdf(self, file_path: str) -> tuple[str, dict]:
+        """Parse PDF using pdfplumber."""
         with pdfplumber.open(file_path) as pdf:
             metadata = {
                 "pages": len(pdf.pages),
@@ -96,7 +63,7 @@ class DocumentParser:
                 if text.strip():
                     text_parts.append(f"--- 第{i}页 ---\n{text}")
         return "\n".join(text_parts), metadata
-    
+
     def _parse_docx(self, file_path: str) -> tuple[str, dict]:
         """Parse Word document."""
         doc = Document(file_path)
@@ -109,36 +76,25 @@ class DocumentParser:
         for para in doc.paragraphs:
             if para.text.strip():
                 text_parts.append(para.text)
-        
-        # Extract tables
         for i, table in enumerate(doc.tables, 1):
             text_parts.append(f"\n[表格{i}]")
             for row in table.rows:
                 cells = [cell.text.strip() for cell in row.cells]
                 text_parts.append(" | ".join(cells))
-        
         return "\n".join(text_parts), metadata
-    
+
     def _parse_image(self, file_path: str) -> tuple[str, dict]:
-        """Parse image using OCR."""
+        """Basic image info — full OCR requires tesseract installation."""
         img = Image.open(file_path)
         metadata = {
             "format": "image",
             "size": img.size,
             "mode": img.mode,
+            "warning": "OCR requires tesseract installation on server",
         }
-        text = pytesseract.image_to_string(img, lang="chi_sim+eng")
-        return text, metadata
-    
+        return f"[Image: {img.size[0]}x{img.size[1]}, {img.mode}]", metadata
+
     def parse_contract(self, file_path: str) -> dict:
-        """Parse a contract and return structured result.
-        
-        Returns dict with:
-        - raw_text: full document text
-        - metadata: document metadata
-        - sections: list of detected sections (basic heuristic)
-        - word_count: rough word count
-        """
         text, metadata = self.parse(file_path)
         sections = self._detect_sections(text)
         return {
@@ -148,9 +104,8 @@ class DocumentParser:
             "word_count": len(text),
             "char_count": len(text),
         }
-    
+
     def _detect_sections(self, text: str) -> list[dict]:
-        """Heuristic section detection based on common contract headers."""
         section_keywords = [
             "第一条", "第二条", "第三条", "第四条", "第五条",
             "第1条", "第2条", "第3条",
@@ -164,15 +119,11 @@ class DocumentParser:
             line = line.strip()
             if not line:
                 continue
-            for keyword in section_keywords:
-                if keyword in line and len(line) < 100:
-                    sections.append({
-                        "line_number": i + 1,
-                        "title": line[:80],
-                    })
+            for kw in section_keywords:
+                if kw in line and len(line) < 100:
+                    sections.append({"line_number": i + 1, "title": line[:80]})
                     break
         return sections
 
 
-# Singleton
 document_parser = DocumentParser()

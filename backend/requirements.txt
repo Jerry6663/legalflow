@@ -1,37 +1,25 @@
-# FastAPI
+# FastAPI - core
 fastapi>=0.115.9
-uvicorn[standard]==0.34.0
-pydantic==2.10.4
-pydantic-settings==2.7.1
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
 
 # LLM & AI
-openai==1.58.1
-langchain==0.3.19
-langchain-openai==0.3.6
-langgraph==0.3.15
+openai>=1.58.0
+langchain>=0.3.0
+langchain-openai>=0.3.0
+langgraph>=0.3.0
 
 # Document parsing
-python-docx==1.1.2
-PyMuPDF==1.25.2
-pdfplumber==0.11.4
-pytesseract==0.3.13
-Pillow==11.1.0
-python-multipart==0.0.20
+python-docx>=1.1.0
+pdfplumber>=0.11.0
+Pillow>=11.0.0
+python-multipart>=0.0.20
 
-# Vector store & Embedding
-chromadb==1.0.2
-sentence-transformers==3.4.1
-
-# Database
-sqlalchemy==2.0.37
-asyncpg==0.30.0
-alembic==1.14.1
-
-# Auth
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+# Vector store - lightweight
+chromadb>=0.5.0
 
 # Utils
-httpx==0.28.1
-python-dotenv==1.1.0
-loguru==0.7.3
+httpx>=0.28.0
+python-dotenv>=1.1.0
+loguru>=0.7.0
