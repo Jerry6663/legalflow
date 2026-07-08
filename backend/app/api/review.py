@@ -9,6 +9,7 @@ from ..services.contract_classifier import contract_classifier
 from ..services.clause_splitter import clause_splitter
 from ..services.risk_classifier import risk_classifier
 from ..services.rule_retriever import rule_retriever
+from ..services.review_agent import review_agent
 from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/review", tags=["contract-review"])
@@ -116,6 +117,49 @@ async def analyze_contract(request: ReviewRequest) -> AnalysisResponse:
         matched_rules=matched_rules,
         overall_level=risk_result["overall_level"],
         summary=summary,
+    )
+
+
+class FullReviewResponse(BaseModel):
+    review_id: str
+    contract_type: str
+    confidence: float
+    keywords: list[str]
+    clauses: list[dict]
+    risks: list[dict]
+    matched_rules: list[dict]
+    matched_laws: list[dict]
+    overall_level: str
+    report: str
+    steps: list[dict]
+
+
+@router.post("/analyze/full")
+async def analyze_contract_full(request: ReviewRequest) -> FullReviewResponse:
+    """Full 7-step contract review workflow powered by ReviewAgent state machine.
+
+    Steps: IDLE -> CLASSIFY -> SPLIT -> ANALYZE_RISKS ->
+           RETRIEVE_RULES -> RETRIEVE_LAWS -> GENERATE_REPORT -> COMPLETE
+
+    Returns complete result including a structured markdown report.
+    """
+    result = review_agent.run(
+        text=request.contract_text,
+        contract_type=request.contract_type or "通用",
+    )
+
+    return FullReviewResponse(
+        review_id=result["review_id"],
+        contract_type=result["contract_type"],
+        confidence=result["confidence"],
+        keywords=result["keywords"],
+        clauses=result["clauses"],
+        risks=result["risks"],
+        matched_rules=result["matched_rules"],
+        matched_laws=result["matched_laws"],
+        overall_level=result["overall_level"],
+        report=result["report"],
+        steps=result["steps"],
     )
 
 

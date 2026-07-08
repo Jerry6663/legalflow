@@ -4,6 +4,8 @@ from .contract_classifier import ContractClassifier, contract_classifier
 from .clause_splitter import ClauseSplitter, clause_splitter
 from .risk_classifier import RiskClassifier, risk_classifier
 from .rule_retriever import RuleRetriever, rule_retriever
+from .law_retriever import LawRetriever, law_retriever
+from .review_agent import ReviewAgent, ReviewState, review_agent
 
 __all__ = [
     "DocumentParser", "DocumentParsingError", "document_parser",
@@ -12,4 +14,6 @@ __all__ = [
     "ClauseSplitter", "clause_splitter",
     "RiskClassifier", "risk_classifier",
     "RuleRetriever", "rule_retriever",
+    "LawRetriever", "law_retriever",
+    "ReviewAgent", "ReviewState", "review_agent",
 ]

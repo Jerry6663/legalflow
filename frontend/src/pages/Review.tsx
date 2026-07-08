@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Upload, FileText, Loader2, AlertTriangle, Shield, BookOpen } from 'lucide-react'
+import { Upload, FileText, Loader2, AlertTriangle, Shield, BookOpen, Scale } from 'lucide-react'
 
 interface Risk {
   title: string
@@ -36,8 +36,23 @@ interface AnalysisResult {
   clauses: Array<{ title: string; type: string; content: string; position: number }>
   risks: Risk[]
   matched_rules: RuleMatch[]
+  matched_laws: LawMatch[]
   overall_level: string
   summary: string
+  report: string
+  steps: Array<{ step: string; detail: string }>
+}
+
+interface LawMatch {
+  clause_title: string
+  risk_type: string
+  laws: Array<{
+    score: number
+    source: string
+    article: string
+    content: string
+    relevance: string
+  }>
 }
 
 export default function Review() {
@@ -63,7 +78,7 @@ export default function Review() {
 
       // Now analyze
       setStep('analyzing')
-      const analyzeRes = await fetch('/api/v1/review/analyze', {
+      const analyzeRes = await fetch('/api/v1/review/analyze/full', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contract_text: text, contract_type: '通用' }),
@@ -290,6 +305,66 @@ export default function Review() {
                           </div>
                         ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Matched Laws */}
+                {results.matched_laws?.filter(m => m.laws.length > 0).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-[#1e3a5f]" />
+                      相关法律法规 (RAG)
+                    </h3>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {results.matched_laws
+                        .filter(m => m.laws.length > 0)
+                        .slice(0, 10)
+                        .map((match, i) => (
+                          <div key={i} className="bg-green-50 rounded-xl p-3">
+                            <p className="text-xs text-gray-500 mb-1">
+                              风险: {match.risk_type} · 条款: {match.clause_title?.slice(0, 30)}
+                            </p>
+                            {match.laws.map((law, j) => (
+                              <div key={j} className="text-xs mt-1">
+                                <span className="font-medium text-gray-700">{law.source}</span>
+                                <span className="text-[#1e3a5f] font-medium"> {law.article}</span>
+                                <span className="ml-1 text-gray-400">相关度: {law.relevance}</span>
+                                <p className="text-gray-500 mt-0.5">{law.content.slice(0, 150)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Steps Timeline */}
+                {results.steps && results.steps.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">审查步骤</h3>
+                    <div className="space-y-1">
+                      {results.steps.map((s, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs">
+                          <div className="w-4 h-4 rounded-full bg-[#1e3a5f]/10 flex items-center justify-center shrink-0 mt-0.5">
+                            <span className="text-[10px] text-[#1e3a5f] font-bold">{i + 1}</span>
+                          </div>
+                          <span className="text-gray-600">{s.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Report */}
+                {results.report && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">审查报告</h3>
+                    <details className="bg-gray-50 rounded-xl p-4">
+                      <summary className="text-sm text-[#1e3a5f] cursor-pointer hover:underline">查看完整报告</summary>
+                      <pre className="mt-3 text-xs text-gray-700 whitespace-pre-wrap font-mono max-h-[400px] overflow-y-auto">
+                        {results.report}
+                      </pre>
+                    </details>
                   </div>
                 )}
               </div>
