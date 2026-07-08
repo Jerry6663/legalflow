@@ -57,7 +57,6 @@ interface LawMatch {
 
 export default function Review() {
   const [step, setStep] = useState<'upload' | 'uploading' | 'analyzing' | 'done'>('upload')
-  const [parsedText, setParsedText] = useState('')
   const [results, setResults] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
@@ -66,6 +65,7 @@ export default function Review() {
     setStep('uploading')
     setError('')
     setResults(null)
+    setElapsed(0)
 
     try {
       const form = new FormData()
@@ -76,46 +76,36 @@ export default function Review() {
 
       const data = await res.json()
       const text = data.parsed?.raw_text || ''
-      setParsedText(text)
 
-      // Start analysis with 45s timeout
+      // Submit review job (instant response)
       setStep('analyzing')
-      setElapsed(0)
       const timer = setInterval(() => setElapsed(p => p + 1), 1000)
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000)
 
-      try {
-        const analyzeRes = await fetch('/api/v1/review/analyze/full', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contract_text: text, contract_type: '通用' }),
-          signal: controller.signal,
-        })
-        clearTimeout(timeoutId)
-        clearInterval(timer)
+      const submitRes = await fetch('/api/v1/review/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract_text: text, contract_type: '通用' }),
+      })
+      const { job_id, queue_position } = await submitRes.json()
 
-        if (!analyzeRes.ok) {
-          const errText = await analyzeRes.text()
-          throw new Error(errText.slice(0, 200) || `分析失败: ${analyzeRes.status}`)
-      if (!analyzeRes.ok) throw new Error(`Analysis failed: ${analyzeRes.status}`)
-      const analyzeData = await analyzeRes.json()
-      setResults(analyzeData)
-        const analyzeData = await analyzeRes.json()
-        setResults(analyzeData)
-        setStep('done')
-      } catch (fetchErr: unknown) {
-        clearTimeout(timeoutId)
-        clearInterval(timer)
-        if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
-          setError('审查超时（超过45秒）。请尝试上传更短的合同，或稍后重试。')
-        } else {
-          setError(fetchErr instanceof Error ? fetchErr.message : '分析失败')
+      // Poll every 2 seconds
+      const pollInterval = setInterval(async () => {
+        const pollRes = await fetch(`/api/v1/review/job/${job_id}`)
+        const job = await pollRes.json()
+        if (job.status === 'done' && job.result) {
+          clearInterval(pollInterval)
+          clearInterval(timer)
+          setResults(job.result)
+          setStep('done')
+        } else if (job.status === 'error') {
+          clearInterval(pollInterval)
+          clearInterval(timer)
+          setError(job.error || '审查失败')
+          setStep('upload')
         }
-        setStep('upload')
-      }
+      }, 2000)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '上传失败')
+      setError(e instanceof Error ? e.message : '提交失败')
       setStep('upload')
     }
   }

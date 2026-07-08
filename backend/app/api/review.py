@@ -199,6 +199,67 @@ def _generate_summary(risk_result: dict, matched_rules: list[dict], contract_typ
     return "".join(parts)
 
 
+# ===== Async Task Queue Endpoints (unlimited HTTP concurrency) =====
+
+class SubmitResponse(BaseModel):
+    job_id: str
+    status: str
+    queue_position: int
+
+
+class JobStatusResponse(BaseModel):
+    status: str
+    queue_position: int
+    result: dict | None = None
+    error: str | None = None
+
+
+@router.post("/submit")
+async def submit_review(request: ReviewRequest) -> SubmitResponse:
+    """Submit a review job — returns instantly. Frontend polls for results.
+
+    HTTP layer handles thousands of concurrent submissions.
+    LLM processing happens in background queue.
+    """
+    from ..services.task_queue import submit_review as submit
+
+    job_id = await submit(
+        text=request.contract_text,
+        contract_type=request.contract_type or "通用",
+    )
+    from ..services.task_queue import get_job_status
+    status = get_job_status(job_id)
+    return SubmitResponse(
+        job_id=job_id,
+        status=status["status"] if status else "queued",
+        queue_position=status["queue_position"] if status else 0,
+    )
+
+
+@router.get("/job/{job_id}")
+async def get_job(job_id: str) -> JobStatusResponse:
+    """Poll for review job status. Frontend calls this every 2 seconds."""
+    from ..services.task_queue import get_job_status
+
+    status = get_job_status(job_id)
+    if not status:
+        raise HTTPException(404, "Job not found")
+
+    return JobStatusResponse(
+        status=status["status"],
+        queue_position=status.get("queue_position", 0),
+        result=status.get("result"),
+        error=status.get("error"),
+    )
+
+
+@router.get("/queue/stats")
+async def queue_stats():
+    """Queue monitoring endpoint."""
+    from ..services.task_queue import get_queue_stats
+    return get_queue_stats()
+
+
 @router.get("/health")
 async def health():
     return {"status": "ok", "service": "LegalFlow API"}
