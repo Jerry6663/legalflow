@@ -1,9 +1,21 @@
-"""Vector store service — ChromaDB."""
+"""Vector store service — ChromaDB (lazy loading)."""
 
 import os
-import chromadb
-from chromadb.config import Settings
 from ..core.config import settings
+
+
+def _get_chromadb():
+    """Lazy import chromadb to avoid crashes when unavailable."""
+    import chromadb
+    return chromadb
+
+chromadb_module = None
+Settings = None
+try:
+    chromadb_module = _get_chromadb()
+    Settings = chromadb_module.config.Settings
+except Exception:
+    pass
 
 
 class VectorStore:
@@ -22,7 +34,9 @@ class VectorStore:
     @property
     def client(self):
         if self._client is None:
-            self._client = chromadb.PersistentClient(
+            if chromadb_module is None or Settings is None:
+                raise RuntimeError("ChromaDB is not available on this platform")
+            self._client = chromadb_module.PersistentClient(
                 path=self.persist_dir,
                 settings=Settings(anonymized_telemetry=False),
             )
