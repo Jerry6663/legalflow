@@ -1,14 +1,36 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Scale } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Scale, User, LogOut } from 'lucide-react'
+import { getMe, logout } from '../lib/api'
 
 const navLinks = [
   { to: '/', label: '首页' },
   { to: '/review', label: '合同审查' },
+  { to: '/rules', label: '规则库' },
   { to: '/pricing', label: '定价' },
 ]
 
+interface UserInfo {
+  username: string
+  review_count: number
+}
+
 export default function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const [user, setUser] = useState<UserInfo | null>(null)
+
+  useEffect(() => {
+    getMe()
+      .then(setUser)
+      .catch(() => setUser(null))
+  }, [location.pathname])
+
+  const handleLogout = () => {
+    logout()
+    setUser(null)
+    navigate('/')
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -36,6 +58,28 @@ export default function Layout() {
                   </Link>
                 )
               })}
+              {user ? (
+                <>
+                  <span className="ml-2 px-3 py-2 text-sm text-white/90 flex items-center gap-1">
+                    <User className="w-4 h-4" />
+                    {user.username}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="px-3 py-2 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    退出
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="ml-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/15 text-white hover:bg-white/25 transition-colors"
+                >
+                  登录
+                </Link>
+              )}
               <a
                 href="https://github.com"
                 target="_blank"

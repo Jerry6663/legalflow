@@ -1,6 +1,6 @@
 """Contract review API endpoints."""
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header
 from pydantic import BaseModel
 import os
 import uuid
@@ -14,6 +14,20 @@ from ..services.review_agent import review_agent
 from ..core.config import settings
 
 router = APIRouter(prefix="/api/v1/review", tags=["contract-review"])
+
+
+# Token dependency
+async def auth_required(authorization: str = Header(None)) -> dict:
+    """Optional auth wrapper. Returns user or raises 401."""
+    from ..services.auth import get_user_by_token
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "请先登录")
+    token = authorization.split(" ", 1)[1]
+    user = get_user_by_token(token)
+    if not user:
+        raise HTTPException(401, "登录已过期，请重新登录")
+    return user
+
 
 # Limit concurrent LLM processing to prevent OOM (Railway free tier: 512MB)
 _review_semaphore = asyncio.Semaphore(2)
@@ -263,3 +277,62 @@ async def queue_stats():
 @router.get("/health")
 async def health():
     return {"status": "ok", "service": "LegalFlow API"}
+
+
+# ===== Auth Endpoints =====
+
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
+    username: str
+    review_count: int
+
+
+class UserResponse(BaseModel):
+    username: str
+    review_count: int
+
+
+@router.post("/auth/register")
+async def auth_register(req: AuthRequest):
+    from ..services.auth import register
+    if len(req.username) < 3 or len(req.password) < 6:
+        raise HTTPException(400, "用户名至少3位，密码至少6位")
+    token = register(req.username, req.password)
+    if not token:
+        raise HTTPException(400, "用户名已存在")
+    return AuthResponse(token=token, username=req.username, review_count=0)
+
+
+@router.post("/auth/login")
+async def auth_login(req: AuthRequest):
+    from ..services.auth import login, get_user_by_token
+    token = login(req.username, req.password)
+    if not token:
+        raise HTTPException(401, "用户名或密码错误")
+    user = get_user_by_token(token)
+    return AuthResponse(token=token, username=req.username, review_count=user["review_count"] if user else 0)
+
+
+@router.get("/rules")
+async def list_rules():
+    """List all review rules from the knowledge base."""
+    rule_retriever.load_rules()
+    if hasattr(rule_retriever, '_rules_memory') and rule_retriever._rules_memory:
+        return {"rules": rule_retriever._rules_memory, "total": len(rule_retriever._rules_memory)}
+    return {"rules": [], "total": 0}
+
+
+@router.get("/auth/me")
+async def auth_me(authorization: str = Header(None)):
+    from ..services.auth import get_user_by_token
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "请先登录")
+    user = get_user_by_token(authorization.split(" ", 1)[1])
+    if not user:
+        raise HTTPException(401, "登录已过期")
+    return UserResponse(username=user["username"], review_count=user["review_count"])
