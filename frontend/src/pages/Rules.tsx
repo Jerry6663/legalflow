@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { fetchRules, ReviewRule } from '../lib/api'
+import { fetchRules } from '../lib/api'
 import { BookOpen, Search, Filter, AlertTriangle, AlertCircle, Info } from 'lucide-react'
 
 const RISK_LEVELS = [
@@ -16,7 +16,7 @@ const levelConfig: Record<string, { icon: typeof AlertTriangle; color: string; b
 }
 
 export default function Rules() {
-  const [rules, setRules] = useState<ReviewRule[]>([])
+  const [rules, setRules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
