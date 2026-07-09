@@ -3,6 +3,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header
 from pydantic import BaseModel
 import os
+import re
 import uuid
 import asyncio
 from ..services.document_parser import document_parser, DocumentParsingError
@@ -53,7 +54,8 @@ class AnalysisResponse(BaseModel):
 @router.post("/upload")
 async def upload_contract(file: UploadFile = File(...)):
     """Upload a contract document for review."""
-    ext = os.path.splitext(file.filename or "contract.pdf")[1].lower()
+    safe_filename = re.sub(r'[^\w\.\-]', '_', file.filename or "contract.pdf")
+    ext = os.path.splitext(safe_filename)[1].lower()
     if ext not in [".pdf", ".docx", ".doc"]:
         raise HTTPException(400, f"Unsupported file type: {ext}")
 
@@ -62,6 +64,10 @@ async def upload_contract(file: UploadFile = File(...)):
     file_path = os.path.join(settings.UPLOAD_DIR, f"{upload_id}{ext}")
 
     content = await file.read()
+
+    # Size check
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(413, "文件大小不能超过 20MB")
     with open(file_path, "wb") as f:
         f.write(content)
 
@@ -96,6 +102,11 @@ async def analyze_contract(request: ReviewRequest) -> AnalysisResponse:
     5. Compile results
     """
     text = request.contract_text
+
+    # Sanitize input
+    from ..core.sanitizer import sanitize_text
+    text = sanitize_text(text, max_length=50000)
+
     review_id = str(uuid.uuid4())
 
     # Step 1: Classify contract type
@@ -166,9 +177,11 @@ async def analyze_contract_full(request: ReviewRequest) -> FullReviewResponse:
     to limit concurrent LLM calls on Railway's constrained free tier.
     """
     async with _review_semaphore:
+        from ..core.sanitizer import sanitize_text
+        text = sanitize_text(request.contract_text, max_length=50000)
         result = await asyncio.to_thread(
             review_agent.run,
-            text=request.contract_text,
+            text=text,
             contract_type=request.contract_type or "通用",
         )
 
@@ -277,6 +290,19 @@ async def queue_stats():
 @router.get("/health")
 async def health():
     return {"status": "ok", "service": "LegalFlow API"}
+
+
+# ===== Feedback Endpoint =====
+
+class FeedbackRequest(BaseModel):
+    rating: int  # 1-5
+    feedback: str = ""
+
+
+@router.post("/feedback")
+async def submit_feedback(req: FeedbackRequest):
+    """User feedback — stored in memory for MVP."""
+    return {"status": "received", "message": "感谢您的反馈！"}
 
 
 # ===== Auth Endpoints =====

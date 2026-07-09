@@ -63,6 +63,10 @@ function HomeRoute() {
       .catch(() => setChecking(false))
   }, [navigate])
 
+  useEffect(() => {
+    document.title = 'LegalFlow - AI合同审查平台'
+  }, [])
+
   if (checking) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -74,6 +78,27 @@ function HomeRoute() {
   return <Home />
 }
 
+// ===== Page Title Wrappers =====
+function ReviewPage() {
+  useEffect(() => { document.title = '合同审查 - LegalFlow' }, [])
+  return <Review />
+}
+
+function RulesPage() {
+  useEffect(() => { document.title = '审查规则库 - LegalFlow' }, [])
+  return <Rules />
+}
+
+function PricingPage() {
+  useEffect(() => { document.title = '定价 - LegalFlow' }, [])
+  return <Pricing />
+}
+
+function LoginPage() {
+  useEffect(() => { document.title = '登录 - LegalFlow' }, [])
+  return <Login />
+}
+
 // ===== App =====
 function App() {
   return (
@@ -82,10 +107,10 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomeRoute />} />
-            <Route path="review" element={<Review />} />
-            <Route path="rules" element={<Rules />} />
-            <Route path="pricing" element={<Pricing />} />
-            <Route path="login" element={<Login />} />
+            <Route path="review" element={<ReviewPage />} />
+            <Route path="rules" element={<RulesPage />} />
+            <Route path="pricing" element={<PricingPage />} />
+            <Route path="login" element={<LoginPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

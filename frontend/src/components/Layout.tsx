@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Scale, User, LogOut } from 'lucide-react'
-import { getMe, logout } from '../lib/api'
+import { Scale, User, LogOut, MessageSquare, Star, X } from 'lucide-react'
+import { getMe, logout, authFetch } from '../lib/api'
 
 const navLinks = [
   { to: '/', label: '首页' },
@@ -30,6 +30,26 @@ export default function Layout() {
     logout()
     setUser(null)
     navigate('/')
+  }
+
+  // Feedback state
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+
+  const submitFeedback = async () => {
+    try {
+      await authFetch('/review/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, feedback: feedbackText }),
+      })
+      setFeedbackSubmitted(true)
+    } catch {
+      // Silently fail — feedback is best-effort
+    }
   }
 
   return (
@@ -105,6 +125,100 @@ export default function Layout() {
           <p className="mt-1">AI驱动的智能合同审查平台</p>
         </div>
       </footer>
+
+      {/* Floating Feedback Button */}
+      <button
+        onClick={() => {
+          setShowFeedback(!showFeedback)
+          setFeedbackSubmitted(false)
+        }}
+        className="fixed bottom-6 right-6 w-12 h-12 bg-[#1e3a5f] text-white rounded-full shadow-lg hover:bg-[#2a4f7f] transition-colors flex items-center justify-center z-50"
+        title="反馈"
+      >
+        <MessageSquare className="w-5 h-5" />
+      </button>
+
+      {/* Feedback Modal */}
+      {showFeedback && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {feedbackSubmitted ? '感谢反馈' : '给我们反馈'}
+              </h3>
+              <button
+                onClick={() => setShowFeedback(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {feedbackSubmitted ? (
+              <div className="text-center py-4">
+                <p className="text-gray-600">您的反馈已提交，感谢您的支持！</p>
+                <button
+                  onClick={() => setShowFeedback(false)}
+                  className="mt-4 px-4 py-2 bg-[#1e3a5f] text-white rounded-lg text-sm hover:bg-[#2a4f7f] transition-colors"
+                >
+                  关闭
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Star Rating */}
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">满意度评价</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="p-0.5 transition-colors"
+                      >
+                        <Star
+                          className={`w-7 h-7 ${
+                            star <= (hoverRating || rating)
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Text Feedback */}
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">文字反馈（可选）</p>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="请告诉我们您的使用体验或建议…"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent"
+                  />
+                </div>
+
+                {/* Submit */}
+                <button
+                  onClick={submitFeedback}
+                  disabled={rating === 0}
+                  className={`w-full py-2 rounded-lg text-sm font-medium transition-colors ${
+                    rating > 0
+                      ? 'bg-[#1e3a5f] text-white hover:bg-[#2a4f7f]'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  提交反馈
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
