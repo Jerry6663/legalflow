@@ -7,7 +7,6 @@ const plans = [
     price: '¥9.9',
     period: '/次',
     description: '按需使用，灵活便捷',
-    icon: Zap,
     features: [
       '12 种合同类型识别',
       '条款智能分割',
@@ -24,7 +23,6 @@ const plans = [
     price: '¥999',
     period: '/月',
     description: '无限审查，适合高频使用',
-    icon: Crown,
     features: [
       '单次审查全部功能',
       '无限审查次数',
@@ -49,58 +47,53 @@ export default function Pricing() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-          {plans.map((plan) => {
-            const Icon = plan.icon
-            return (
-              <div
-                key={plan.name}
-                className={`relative rounded-2xl ${
-                  plan.featured
-                    ? 'bg-white ring-2 ring-[#1e3a5f] shadow-xl'
-                    : 'bg-white shadow-sm border border-gray-200'
-                }`}
-              >
-                {plan.featured && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-[#1e3a5f] text-white text-xs font-semibold px-4 py-1.5 rounded-full">
-                      最受欢迎
-                    </span>
-                  </div>
-                )}
-                <div className="p-8">
-                  <Icon className="w-8 h-8 text-[#1e3a5f] mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{plan.name}</h3>
-                  <p className="text-sm text-gray-500 mb-6">{plan.description}</p>
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-500 ml-1">{plan.period}</span>
-                  </div>
-
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3 text-sm text-gray-700">
-                        <svg className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link
-                    to="/review"
-                    className={`block text-center py-3 px-6 rounded-xl font-semibold transition-colors ${
-                      plan.featured
-                        ? 'bg-[#1e3a5f] text-white hover:bg-[#1e40af]'
-                        : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Link>
+          {plans.map((plan) => (
+            <div
+              key={plan.name}
+              className={`relative rounded-2xl ${plan.featured
+                ? 'bg-white ring-2 ring-[#1e3a5f] shadow-xl'
+                : 'bg-white shadow-sm border border-gray-200'
+              }`}
+            >
+              {plan.featured && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <span className="bg-[#1e3a5f] text-white text-xs font-semibold px-4 py-1.5 rounded-full">
+                    最受欢迎
+                  </span>
                 </div>
+              )}
+              <div className="p-8">
+                <PricingIcon name={plan.name} />
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">{plan.name}</h3>
+                <p className="text-sm text-gray-500 mb-6">{plan.description}</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
+                  <span className="text-gray-500 ml-1">{plan.period}</span>
+                </div>
+
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-3 text-sm text-gray-700">
+                      <svg className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  to="/review"
+                  className={`block text-center py-3 px-6 rounded-xl font-semibold transition-colors ${plan.featured
+                    ? 'bg-[#1e3a5f] text-white hover:bg-[#1e40af]'
+                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  }`}
+                >
+                  {plan.cta}
+                </Link>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         <div className="text-center mt-16">
@@ -114,4 +107,11 @@ export default function Pricing() {
       </div>
     </div>
   )
+}
+
+function PricingIcon({ name }: { name: string }) {
+  if (name === '单次审查') {
+    return <Zap className="w-8 h-8 text-[#1e3a5f] mb-4" />
+  }
+  return <Crown className="w-8 h-8 text-[#1e3a5f] mb-4" />
 }
