@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Upload, FileText, Loader2, AlertTriangle, Shield, BookOpen, Scale } from 'lucide-react'
 
 interface Risk {
@@ -60,8 +60,22 @@ export default function Review() {
   const [results, setResults] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState('')
   const [elapsed, setElapsed] = useState(0)
+  const pollRef = useRef<number | null>(null)
+  const timerRef = useRef<number | null>(null)
+
+  // Cleanup on unmount — prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [])
 
   const handleFile = async (file: File) => {
+    // Clean up any previous polling
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+
     setStep('uploading')
     setError('')
     setResults(null)
@@ -71,41 +85,79 @@ export default function Review() {
       const form = new FormData()
       form.append('file', file)
 
-      const res = await fetch('/api/v1/review/upload', { method: 'POST', body: form })
+      const abortCtrl = new AbortController()
+      const uploadTimer = setTimeout(() => abortCtrl.abort(), 30000)
+
+      const res = await fetch('/api/v1/review/upload', {
+        method: 'POST',
+        body: form,
+        signal: abortCtrl.signal,
+      })
+      clearTimeout(uploadTimer)
       if (!res.ok) throw new Error(`上传失败: ${res.status}`)
 
       const data = await res.json()
       const text = data.parsed?.raw_text || ''
 
-      // Submit review job (instant response)
       setStep('analyzing')
-      const timer = setInterval(() => setElapsed(p => p + 1), 1000)
+      timerRef.current = window.setInterval(() => setElapsed(p => p + 1), 1000)
 
+      const submitCtrl = new AbortController()
+      const submitTimer = setTimeout(() => submitCtrl.abort(), 15000)
       const submitRes = await fetch('/api/v1/review/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contract_text: text, contract_type: '通用' }),
+        signal: submitCtrl.signal,
       })
-      const { job_id, queue_position } = await submitRes.json()
+      clearTimeout(submitTimer)
+      if (!submitRes.ok) throw new Error(`提交失败: ${submitRes.status}`)
+      const { job_id } = await submitRes.json()
 
-      // Poll every 2 seconds
-      const pollInterval = setInterval(async () => {
-        const pollRes = await fetch(`/api/v1/review/job/${job_id}`)
-        const job = await pollRes.json()
-        if (job.status === 'done' && job.result) {
-          clearInterval(pollInterval)
-          clearInterval(timer)
-          setResults(job.result)
-          setStep('done')
-        } else if (job.status === 'error') {
-          clearInterval(pollInterval)
-          clearInterval(timer)
-          setError(job.error || '审查失败')
+      // Poll every 2s, max 90 times (3 minutes)
+      const MAX_POLLS = 90
+      let pollCount = 0
+      pollRef.current = window.setInterval(async () => {
+        pollCount++
+        if (pollCount > MAX_POLLS) {
+          clearInterval(pollRef.current!)
+          if (timerRef.current) clearInterval(timerRef.current)
+          setError('审查超时（超过3分钟），请稍后重试或联系客服')
           setStep('upload')
+          return
+        }
+
+        const pollCtrl = new AbortController()
+        const pollTimer = setTimeout(() => pollCtrl.abort(), 5000)
+
+        try {
+          const pollRes = await fetch(`/api/v1/review/job/${job_id}`, {
+            signal: pollCtrl.signal,
+          })
+          clearTimeout(pollTimer)
+          const job = await pollRes.json()
+          if (job.status === 'done' && job.result) {
+            clearInterval(pollRef.current!)
+            if (timerRef.current) clearInterval(timerRef.current)
+            setResults(job.result)
+            setStep('done')
+          } else if (job.status === 'error') {
+            clearInterval(pollRef.current!)
+            if (timerRef.current) clearInterval(timerRef.current)
+            setError(job.error || '审查失败')
+            setStep('upload')
+          }
+        } catch {
+          clearTimeout(pollTimer)
+          // Single poll failure — ignore, try again on next interval
         }
       }, 2000)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '提交失败')
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setError('请求超时，请检查网络后重试')
+      } else {
+        setError(e instanceof Error ? e.message : '提交失败')
+      }
       setStep('upload')
     }
   }
