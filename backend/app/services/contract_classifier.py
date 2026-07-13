@@ -72,6 +72,35 @@ class ContractClassifier:
         # Step 3: Fallback to keyword result
         return kw_result
 
+    def detect_ambiguity(self, text: str) -> dict | None:
+        """Detect if multiple contract types match closely. Returns follow-up questions if ambiguous."""
+        kw_result = self._keyword_classify(text)
+
+        # Check for close second matches
+        search_text = text[:5000] + text[-500:]
+        scores = {}
+        for pattern, contract_type, confidence in KEYWORD_PATTERNS:
+            matches = len(re.findall(pattern, search_text))
+            if matches > 0:
+                scores[contract_type] = scores.get(contract_type, 0) + matches * confidence
+
+        if len(scores) < 2:
+            return None
+
+        sorted_types = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        top_score = sorted_types[0][1]
+        second_score = sorted_types[1][1] if len(sorted_types) > 1 else 0
+
+        # If scores are within 50% of each other, it's ambiguous
+        if second_score > 0 and second_score / max(top_score, 0.01) > 0.5:
+            return {
+                "ambiguous": True,
+                "options": [sorted_types[0][0], sorted_types[1][0]],
+                "question": "该合同文本可能属于以下类型，请确认：",
+            }
+
+        return None
+
     def _keyword_classify(self, text: str) -> dict:
         """Keyword-based pre-classification for high-confidence matches."""
         # Check first 5000 chars and last 500 chars (title often at top)

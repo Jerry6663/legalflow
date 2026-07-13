@@ -6,6 +6,7 @@ import { getMe, logout, authFetch } from '../lib/api'
 const navLinks = [
   { to: '/', label: '首页' },
   { to: '/review', label: '合同审查' },
+  { to: '/history', label: '历史记录' },
   { to: '/rules', label: '规则库' },
   { to: '/pricing', label: '定价' },
 ]

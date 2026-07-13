@@ -362,3 +362,33 @@ async def auth_me(authorization: str = Header(None)):
     if not user:
         raise HTTPException(401, "登录已过期")
     return UserResponse(username=user["username"], review_count=user["review_count"])
+
+
+@router.get("/history")
+async def review_history(authorization: str = Header(None)):
+    """Get review history for current user."""
+    from ..services.auth import get_user_by_token
+    from ..core.database import get_reviews
+    user = None
+    if authorization and authorization.startswith("Bearer "):
+        user = get_user_by_token(authorization.split(" ", 1)[1])
+    reviews = get_reviews(username=user["username"] if user else None)
+    return {"reviews": reviews}
+
+
+@router.get("/review/{review_id}")
+async def get_review_detail(review_id: str):
+    """Get full review result by ID."""
+    from ..core.database import get_review
+    review = get_review(review_id)
+    if not review:
+        raise HTTPException(404, "Review not found")
+    return review
+
+
+@router.get("/audit/{review_id}")
+async def get_audit_trail(review_id: str):
+    """Get audit logs for a review."""
+    from ..core.database import get_audit_logs
+    logs = get_audit_logs(review_id)
+    return {"logs": logs}

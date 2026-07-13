@@ -102,10 +102,74 @@ class ReviewAgent:
 
     def _do_analyze_risks(self):
         clauses = self.context.get("clauses", [])
-        result = risk_classifier.analyze_contract(clauses, max_clauses=8)
-        self.context["risk_result"] = result
-        self.context["overall_level"] = result["overall_level"]
-        self._add_step("analyze_risks", f"发现 {result['total_risks']} 个风险点")
+        contract_type = self.context.get("contract_type", "")
+
+        from .slow_think import SlowThinkEngine
+
+        engine = SlowThinkEngine()
+        analyzed_clauses = []
+
+        for clause in clauses[:8]:
+            content = clause.get("content", "")
+            clause_type = clause.get("type", "")
+
+            if len(content) < 20:
+                analyzed_clauses.append({
+                    "title": clause.get("title", ""),
+                    "type": clause_type,
+                    "content": content,
+                    "has_risk": False,
+                    "risks": [],
+                })
+                continue
+
+            rules = rule_retriever.search_for_clause(
+                clause, contract_type=contract_type, top_k=3
+            )
+            rag_context = [r.get("content", "") for r in rules] if rules else []
+
+            result = engine.review(
+                clause_text=content,
+                clause_type=clause_type,
+                contract_type=contract_type,
+                rag_context=rag_context,
+            )
+
+            analyzed_clauses.append({
+                "title": clause.get("title", ""),
+                "type": clause_type,
+                "content": content,
+                "has_risk": result["has_risk"],
+                "risks": result["risks"],
+            })
+
+        total = sum(len(c["risks"]) for c in analyzed_clauses)
+        high = sum(1 for c in analyzed_clauses
+                   for r in c["risks"] if r["severity"] == "高风险")
+        medium = sum(1 for c in analyzed_clauses
+                     for r in c["risks"] if r["severity"] == "中风险")
+
+        if high >= 3:
+            level = "高风险"
+        elif high >= 1 or total >= 5:
+            level = "中风险"
+        elif total >= 1:
+            level = "低风险"
+        else:
+            level = "无风险"
+
+        self.context["risk_result"] = {
+            "clauses": analyzed_clauses,
+            "total_risks": total,
+            "high_risks": high,
+            "medium_risks": medium,
+            "overall_level": level,
+            "clauses_analyzed": len(analyzed_clauses),
+            "clauses_total": len(clauses),
+        }
+        self.context["overall_level"] = level
+        self._add_step("analyze_risks",
+                       f"Slow Think 四步推理完成 — 发现{total}个风险点（{high}个高风险）")
 
     def _do_retrieve_rules(self):
         risk_result = self.context.get("risk_result", {})

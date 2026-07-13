@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Review from './pages/Review'
 import Rules from './pages/Rules'
 import Pricing from './pages/Pricing'
+import History from './pages/History'
 import Login from './pages/Login'
 import { getToken, getMe } from './lib/api'
 
@@ -94,6 +95,11 @@ function PricingPage() {
   return <Pricing />
 }
 
+function HistoryPage() {
+  useEffect(() => { document.title = '审查历史 - LegalFlow' }, [])
+  return <History />
+}
+
 function LoginPage() {
   useEffect(() => { document.title = '登录 - LegalFlow' }, [])
   return <Login />
@@ -110,6 +116,7 @@ function App() {
             <Route path="review" element={<ReviewPage />} />
             <Route path="rules" element={<RulesPage />} />
             <Route path="pricing" element={<PricingPage />} />
+            <Route path="history" element={<HistoryPage />} />
             <Route path="login" element={<LoginPage />} />
           </Route>
         </Routes>
