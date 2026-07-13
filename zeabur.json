@@ -1,0 +1,16 @@
+{
+  "project": "legalflow",
+  "services": [
+    {
+      "name": "backend",
+      "type": "docker",
+      "source": "backend",
+      "port": "8000",
+      "env": {
+        "DEEPSEEK_MODEL": "deepseek-v4-flash",
+        "APP_NAME": "LegalFlow",
+        "APP_VERSION": "1.0.0"
+      }
+    }
+  ]
+}
