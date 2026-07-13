@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Upload, FileText, Loader2, AlertTriangle, Shield, BookOpen, Scale, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react'
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
+
 interface Risk {
   title: string
   type: string
@@ -108,7 +110,7 @@ export default function Review() {
       const abortCtrl = new AbortController()
       const uploadTimer = setTimeout(() => abortCtrl.abort(), 30000)
 
-      const res = await fetch('/api/v1/review/upload', {
+      const res = await fetch(`${API_BASE}/review/upload`, {
         method: 'POST',
         body: form,
         signal: abortCtrl.signal,
@@ -158,7 +160,7 @@ export default function Review() {
 
       const submitCtrl = new AbortController()
       const submitTimer = setTimeout(() => submitCtrl.abort(), 15000)
-      const submitRes = await fetch('/api/v1/review/submit', {
+      const submitRes = await fetch(`${API_BASE}/review/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contract_text: rawText, contract_type: selectedType || '通用' }),
@@ -183,7 +185,7 @@ export default function Review() {
         const pollCtrl = new AbortController()
         const pollTimer = setTimeout(() => pollCtrl.abort(), 5000)
         try {
-          const pollRes = await fetch(`/api/v1/review/job/${job_id}`, {
+          const pollRes = await fetch(`${API_BASE}/review/job/${job_id}`, {
             signal: pollCtrl.signal,
           })
           clearTimeout(pollTimer)
