@@ -109,7 +109,7 @@ function LoginPage() {
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter basename="/legalflow">
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<HomeRoute />} />
