@@ -245,7 +245,7 @@ export default function Review() {
       {/* Steps Progress Bar */}
       <div className="flex items-center justify-center mb-10">
         <div className="flex items-center gap-0 flex-wrap justify-center">
-          {[1, 2, 3, 4, 5].map((step, idx) => (
+          {[1, 2, 3, 4, 5].map((step) => (
             <div key={step} className="flex items-center">
               {/* Step Circle */}
               <div className="flex flex-col items-center">
