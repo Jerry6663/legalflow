@@ -43,9 +43,9 @@ app.add_middleware(RateLimitMiddleware)
 # CORS — only allow frontend origin in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://legalflow-production-b834.up.railway.app"],
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 

@@ -17,17 +17,10 @@ from ..core.config import settings
 router = APIRouter(prefix="/api/v1/review", tags=["contract-review"])
 
 
-# Token dependency
+# Token dependency — currently bypassed for public access
 async def auth_required(authorization: str = Header(None)) -> dict:
-    """Optional auth wrapper. Returns user or raises 401."""
-    from ..services.auth import get_user_by_token
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "请先登录")
-    token = authorization.split(" ", 1)[1]
-    user = get_user_by_token(token)
-    if not user:
-        raise HTTPException(401, "登录已过期，请重新登录")
-    return user
+    """Optional auth wrapper. Returns empty user for now."""
+    return {}
 
 
 # Limit concurrent LLM processing to prevent OOM (Railway free tier: 512MB)
