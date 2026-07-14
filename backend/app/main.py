@@ -52,27 +52,12 @@ app.add_middleware(
 # Register API routers BEFORE static file catch-all
 app.include_router(review_router)
 
-# Serve static frontend
-app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
-
 
 @app.get("/favicon.svg")
 async def favicon():
-    return FileResponse("static/favicon.svg")
+    return {"ok": True}
 
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-
-
-@app.get("/{full_path:path}")
-async def serve_frontend(full_path: str):
-    """Serve frontend index.html for SPA routing with path traversal protection."""
-    static_dir = "static"
-    safe_path = os.path.normpath(os.path.join(static_dir, full_path))
-    if not safe_path.startswith(os.path.normpath(static_dir)):
-        raise HTTPException(403, "Access denied")
-    if full_path and os.path.isfile(safe_path):
-        return FileResponse(safe_path)
-    return FileResponse("static/index.html")
